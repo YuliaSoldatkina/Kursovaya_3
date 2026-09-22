@@ -43,6 +43,182 @@ def prepare_companies(
     return companies
 
 
+def print_companies_count(db_manager: DBManager) -> None:
+    """Выводит компании и количество их вакансий."""
+    rows = db_manager.get_companies_and_vacancies_count()
+
+    print("\nКомпании и количество вакансий:")
+    for company_name, vacancies_count in rows:
+        print(
+            f"{company_name}: "
+            f"{vacancies_count} вакансий"
+        )
+
+
+def print_all_vacancies(db_manager: DBManager) -> None:
+    """Выводит список всех вакансий."""
+    rows = db_manager.get_all_vacancies()
+
+    print("\nВсе вакансии:")
+    for row in rows:
+        (
+            company_name,
+            vacancy_name,
+            salary_from,
+            salary_to,
+            currency,
+            url,
+        ) = row
+
+        salary = format_salary(
+            salary_from,
+            salary_to,
+            currency,
+        )
+
+        print(
+            f"{company_name} — {vacancy_name}; "
+            f"зарплата: {salary}; "
+            f"ссылка: {url}"
+        )
+
+
+def format_salary(
+    salary_from: int | None,
+    salary_to: int | None,
+    currency: str | None,
+) -> str:
+    """Формирует человекочитаемое представление зарплаты."""
+    currency_text = currency or "валюта не указана"
+
+    if salary_from is not None and salary_to is not None:
+        return f"от {salary_from} до {salary_to} {currency_text}"
+
+    if salary_from is not None:
+        return f"от {salary_from} {currency_text}"
+
+    if salary_to is not None:
+        return f"до {salary_to} {currency_text}"
+
+    return "зарплата не указана"
+
+
+def print_average_salary(db_manager: DBManager) -> None:
+    """Выводит среднюю зарплату по вакансиям."""
+    average_salary = db_manager.get_avg_salary()
+
+    if average_salary is None:
+        print("\nСредняя зарплата не определена.")
+        return
+
+    print(f"\nСредняя зарплата: {average_salary:.2f}")
+
+
+def print_higher_salary_vacancies(
+    db_manager: DBManager,
+) -> None:
+    """Выводит вакансии с зарплатой выше средней."""
+    rows = db_manager.get_vacancies_with_higher_salary()
+
+    print("\nВакансии с зарплатой выше средней:")
+
+    if not rows:
+        print("Таких вакансий нет.")
+        return
+
+    for company_name, vacancy_name, salary, currency, url in rows:
+        print(
+            f"{company_name} — {vacancy_name}; "
+            f"зарплата: {salary:.2f} {currency or ''}; "
+            f"ссылка: {url}"
+        )
+
+
+def print_keyword_vacancies(
+    db_manager: DBManager,
+    keyword: str,
+) -> None:
+    """Выводит вакансии по ключевому слову."""
+    rows = db_manager.get_vacancies_with_keyword(keyword)
+
+    print(
+        f"\nВакансии, содержащие слово "
+        f"«{keyword}»:"
+    )
+
+    if not rows:
+        print("Вакансии не найдены.")
+        return
+
+    for row in rows:
+        (
+            company_name,
+            vacancy_name,
+            salary_from,
+            salary_to,
+            currency,
+            url,
+        ) = row
+
+        salary = format_salary(
+            salary_from,
+            salary_to,
+            currency,
+        )
+
+        print(
+            f"{company_name} — {vacancy_name}; "
+            f"зарплата: {salary}; "
+            f"ссылка: {url}"
+        )
+
+
+def show_menu() -> None:
+    """Выводит пункты меню."""
+    print(
+        "\nВыберите действие:\n"
+        "1 — компании и количество вакансий\n"
+        "2 — все вакансии\n"
+        "3 — средняя зарплата\n"
+        "4 — вакансии выше средней зарплаты\n"
+        "5 — поиск по ключевому слову\n"
+        "0 — выход"
+    )
+
+
+def run_user_interface(db_manager: DBManager) -> None:
+    """Запускает пользовательское меню."""
+    while True:
+        show_menu()
+        choice = input("Введите номер действия: ").strip()
+
+        if choice == "1":
+            print_companies_count(db_manager)
+        elif choice == "2":
+            print_all_vacancies(db_manager)
+        elif choice == "3":
+            print_average_salary(db_manager)
+        elif choice == "4":
+            print_higher_salary_vacancies(db_manager)
+        elif choice == "5":
+            keyword = input(
+                "Введите ключевое слово, например python: "
+            ).strip()
+
+            if keyword:
+                print_keyword_vacancies(
+                    db_manager,
+                    keyword,
+                )
+            else:
+                print("Ключевое слово не должно быть пустым.")
+        elif choice == "0":
+            print("Работа программы завершена.")
+            break
+        else:
+            print("Некорректный выбор. Введите число от 0 до 5.")
+
+
 def main() -> None:
     """Создаёт базу, таблицы и загружает данные из резервного файла."""
     database_creator = DatabaseCreator(DB_CONFIG)
@@ -105,22 +281,5 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-
     db_manager = DBManager(DB_CONFIG)
-
-    print("\nКомпании и количество вакансий:")
-    for row in db_manager.get_companies_and_vacancies_count():
-        print(f"- {row[0]}: {row[1]} вакансий")
-
-    average_salary = db_manager.get_avg_salary()
-    print(f"\nСредняя зарплата: {average_salary}")
-
-    print("\nВакансии выше средней зарплаты:")
-    for row in db_manager.get_vacancies_with_higher_salary():
-        print(f"- {row[0]} — {row[1]}: {row[2]} {row[3]}")
-
-    print("\nВакансии по ключевому слову «python»:")
-    for row in db_manager.get_vacancies_with_keyword("python"):
-        print(f"- {row[0]} — {row[1]}")
-
-    print("\nВсего вакансий:", len(db_manager.get_all_vacancies()))
+    run_user_interface(db_manager)
